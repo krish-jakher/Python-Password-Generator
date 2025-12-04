@@ -1,50 +1,101 @@
-# --- Asking the user for length ---
-while True:
+import secrets
+import string
+import tkinter as tk
+from tkinter import messagebox
+
+def generate_password():
+    # 1. Get Password Length from GUI Input
     try:
-        # Slightly more casual message
-        usr_len = int(input("Password length? (min 4): "))
-        if usr_len >= 4:
-            break
-        else:
-            print("Oops, too short. Need at least 4.")
+        length_input = length_entry.get()
+        length = int(length_input)
+        
+        if length < 4:
+            messagebox.showwarning("Invalid Input", "Length must be at least 4.")
+            return
+            
     except ValueError:
-        print("Not a number. Try again.")  # same error message but shorter
+        messagebox.showerror("Invalid Input", "Please enter a valid number.")
+        return
 
-# --- Setting up character pools ---
-# I always forget these names so keeping them simple
-lowers = string.ascii_lowercase
-uppers = string.ascii_uppercase
-nums = string.digits
-syms = string.punctuation
+    # 2. Define Character Sets
+    lower_case = string.ascii_lowercase
+    upper_case = string.ascii_uppercase
+    digits = string.digits
+    symbols = string.punctuation
+    
+    character_pool = lower_case + upper_case + digits + symbols
+    
+    # 3. Generating the Password
+    password_list = []
+    
+    # Add Mandatory Characters
+    password_list.append(secrets.choice(lower_case))
+    password_list.append(secrets.choice(upper_case))
+    password_list.append(secrets.choice(digits))
+    password_list.append(secrets.choice(symbols))
 
-# Combine everything (might split later if needed)
-everything = lowers + uppers + nums + syms
+    remaining_length = length - len(password_list)
 
-# --- Build the password step-by-step ---
-pwd_parts = []  # using a mutable list because easier to shuffle
+    for i in range(remaining_length):
+        password_list.append(secrets.choice(character_pool))
 
-# Mandatory picks (I always add one of each just to be safe)
-pwd_parts.append(secrets.choice(lowers))
-pwd_parts.append(secrets.choice(uppers))
-pwd_parts.append(secrets.choice(nums))
-pwd_parts.append(secrets.choice(syms))
+    # Shuffle
+    secrets.SystemRandom().shuffle(password_list)
+    final_password = "".join(password_list)
+    
+    # 4. Display Result in GUI
+    result_var.set(final_password)
+    status_label.config(text="Password Generated!", fg="green")
 
-# Just storing this although I could inline it, but meh
-leftover = usr_len - len(pwd_parts)
+def copy_to_clipboard():
+    password = result_var.get()
+    if password:
+        root.clipboard_clear()
+        root.clipboard_append(password)
+        root.update() # Keeps the clipboard current
+        status_label.config(text="Copied to Clipboard!", fg="blue")
+    else:
+        status_label.config(text="Generate a password first.", fg="red")
 
-# Fill the remaining slots  
-# TODO: maybe switch to secrets.token_urlsafe someday
-for _ in range(leftover):
-    # I tend to overuse `.choice`, but it's fine
-    pwd_parts.append(secrets.choice(everything))
+# --- GUI SETUP ---
 
-# Shuffle so the first four aren't always predictable  
-# (learned this the hard way once...)
-rng = secrets.SystemRandom()
-rng.shuffle(pwd_parts)
+# Create main window
+root = tk.Tk()
+root.title("Secure Password Generator")
+root.geometry("400x350")
+root.resizable(False, False)
 
-# Join everything into a string  
-final_password = "".join(pwd_parts)
+# Title Label
+title_label = tk.Label(root, text="Password Generator", font=("Helvetica", 16, "bold"))
+title_label.pack(pady=20)
 
-# Display result
-print("\nYour new password (length {}): {}".format(usr_len, final_password))
+# Length Input Frame
+input_frame = tk.Frame(root)
+input_frame.pack(pady=10)
+
+tk.Label(input_frame, text="Password Length:", font=("Arial", 12)).pack(side=tk.LEFT, padx=10)
+length_entry = tk.Entry(input_frame, width=10, font=("Arial", 12))
+length_entry.insert(0, "12") # Default value
+length_entry.pack(side=tk.LEFT)
+
+# Generate Button
+generate_btn = tk.Button(root, text="Generate Password", command=generate_password, 
+                         font=("Arial", 12, "bold"), bg="#4CAF50", fg="white", padx=10, pady=5)
+generate_btn.pack(pady=15)
+
+# Result Display (Entry widget allowing copy/paste)
+result_var = tk.StringVar()
+result_entry = tk.Entry(root, textvariable=result_var, font=("Courier New", 14), 
+                        state="readonly", width=25, justify="center")
+result_entry.pack(pady=10)
+
+# Copy Button
+copy_btn = tk.Button(root, text="Copy to Clipboard", command=copy_to_clipboard, font=("Arial", 10))
+copy_btn.pack(pady=5)
+
+# Status Label (for messages like "Copied!")
+status_label = tk.Label(root, text="", font=("Arial", 10))
+status_label.pack(pady=10)
+
+# Run the App
+root.mainloop()
